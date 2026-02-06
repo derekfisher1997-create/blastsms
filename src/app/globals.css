@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #27272a transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 5px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+
+body {
+  background: #09090b;
+  color: #fafafa;
+}
+
+@layer utilities {
+  .card {
+    @apply bg-surface border border-edge rounded-lg;
+  }
+
+  .card-raised {
+    @apply bg-surface-raised border border-edge rounded-lg;
+  }
+
+  .input {
+    @apply w-full px-3 py-2.5 bg-surface border border-edge rounded-md text-fg text-sm
+      placeholder:text-fg-dim focus:outline-none focus:border-fg-muted focus:ring-1 focus:ring-fg-muted/30
+      transition-colors duration-150;
+  }
+
+  .btn {
+    @apply px-4 py-2 text-sm font-medium rounded-md transition-all duration-150 active:scale-[0.98];
+  }
+
+  .btn-primary {
+    @apply btn bg-fg text-bg hover:bg-fg/90;
+  }
+
+  .btn-secondary {
+    @apply btn border border-edge text-fg-secondary hover:text-fg hover:border-edge-strong hover:bg-surface-raised;
+  }
+
+  .btn-danger {
+    @apply btn text-fg-muted border border-edge hover:text-fg hover:bg-surface-raised;
+  }
+
+  .btn-ghost {
+    @apply btn text-fg-muted hover:text-fg hover:bg-surface-raised;
+  }
+}
