@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!;
-const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!;
+const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!.trim();
+const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!.trim();
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,

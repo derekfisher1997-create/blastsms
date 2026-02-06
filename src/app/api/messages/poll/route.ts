@@ -8,7 +8,7 @@ export async function GET() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const httpsmsKey = process.env.HTTPSMS_API_KEY;
-    const httpsmsFrom = process.env.HTTPSMS_FROM_PHONE;
+    const httpsmsFrom = process.env.HTTPSMS_FROM_PHONE?.trim();
 
     if (!supabaseUrl || !supabaseKey || !httpsmsKey || !httpsmsFrom) {
       return NextResponse.json({
@@ -117,11 +117,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      newMessages: newMessageCount,
-      debug: { threadsFound: threads.length, httpsmsFrom: httpsmsFrom },
-    });
+    return NextResponse.json({ success: true, newMessages: newMessageCount });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[poll] Error:", message);

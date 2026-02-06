@@ -6,8 +6,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!;
-const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!;
+const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!.trim();
+const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!.trim();
 
 export async function POST(request: Request) {
   try {
