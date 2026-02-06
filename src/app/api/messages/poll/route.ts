@@ -9,6 +9,8 @@ const supabase = createClient(
 const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!;
 const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!;
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     // Fetch message threads from httpSMS
