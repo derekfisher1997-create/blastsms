@@ -117,7 +117,11 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ success: true, newMessages: newMessageCount });
+    return NextResponse.json({
+      success: true,
+      newMessages: newMessageCount,
+      debug: { threadsFound: threads.length, httpsmsFrom: httpsmsFrom },
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[poll] Error:", message);
