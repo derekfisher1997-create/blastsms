@@ -1,28 +1,38 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-const HTTPSMS_KEY = process.env.HTTPSMS_API_KEY!;
-const HTTPSMS_FROM = process.env.HTTPSMS_FROM_PHONE!;
-
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const httpsmsKey = process.env.HTTPSMS_API_KEY;
+    const httpsmsFrom = process.env.HTTPSMS_FROM_PHONE;
+
+    if (!supabaseUrl || !supabaseKey || !httpsmsKey || !httpsmsFrom) {
+      return NextResponse.json({
+        success: false,
+        error: "Missing env vars",
+        missing: {
+          supabaseUrl: !supabaseUrl,
+          supabaseKey: !supabaseKey,
+          httpsmsKey: !httpsmsKey,
+          httpsmsFrom: !httpsmsFrom,
+        },
+      }, { status: 500 });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Fetch message threads from httpSMS
     const threadsRes = await fetch(
-      `https://api.httpsms.com/v1/message-threads?owner=${encodeURIComponent(HTTPSMS_FROM)}`,
-      {
-        headers: { "x-api-key": HTTPSMS_KEY },
-      }
+      `https://api.httpsms.com/v1/message-threads?owner=${encodeURIComponent(httpsmsFrom)}`,
+      { headers: { "x-api-key": httpsmsKey } }
     );
 
     const threadsData = await threadsRes.json();
-    const threads = threadsData.data || [];
+    const threads = Array.isArray(threadsData.data) ? threadsData.data : [];
     let newMessageCount = 0;
 
     for (const thread of threads) {
@@ -31,35 +41,33 @@ export async function GET() {
 
       // Fetch recent messages for this thread
       const msgsRes = await fetch(
-        `https://api.httpsms.com/v1/messages?owner=${encodeURIComponent(HTTPSMS_FROM)}&contact=${encodeURIComponent(contact)}&skip=0&limit=20`,
-        {
-          headers: { "x-api-key": HTTPSMS_KEY },
-        }
+        `https://api.httpsms.com/v1/messages?owner=${encodeURIComponent(httpsmsFrom)}&contact=${encodeURIComponent(contact)}&skip=0&limit=20`,
+        { headers: { "x-api-key": httpsmsKey } }
       );
 
       const msgsData = await msgsRes.json();
-      const messages = msgsData.data || [];
+      const messages = Array.isArray(msgsData.data) ? msgsData.data : [];
 
       if (messages.length === 0) continue;
 
       // Ensure conversation exists
-      const { data: conv } = await supabase
+      const { data: conv, error: convErr } = await supabase
         .from("conversations")
-        .upsert(
-          { phone: contact },
-          { onConflict: "phone" }
-        )
+        .upsert({ phone: contact }, { onConflict: "phone" })
         .select("id")
         .single();
 
-      if (!conv) continue;
+      if (convErr || !conv) {
+        console.error("[poll] Conv upsert error:", convErr);
+        continue;
+      }
 
       // Try to link contact
       const { data: existingContact } = await supabase
         .from("contacts")
         .select("id")
         .eq("phone", contact)
-        .single();
+        .maybeSingle();
 
       if (existingContact) {
         await supabase
@@ -71,12 +79,10 @@ export async function GET() {
       // Insert messages, skipping duplicates
       for (const msg of messages) {
         const httpsmsId = msg.id;
-        const direction =
-          msg.owner === HTTPSMS_FROM && msg.contact === contact
-            ? "outbound"
-            : "inbound";
+        // httpSMS: if "from" matches our phone, it's outbound
+        const direction = msg.from === httpsmsFrom ? "outbound" : "inbound";
 
-        const { error: insertErr } = await supabase.from("messages").upsert(
+        await supabase.from("messages").upsert(
           {
             httpsms_id: httpsmsId,
             conversation_id: conv.id,
@@ -88,7 +94,7 @@ export async function GET() {
           { onConflict: "httpsms_id", ignoreDuplicates: true }
         );
 
-        if (!insertErr) newMessageCount++;
+        newMessageCount++;
       }
 
       // Update conversation's last message
@@ -98,16 +104,9 @@ export async function GET() {
         .eq("conversation_id", conv.id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (lastMsg) {
-        // Count unread (inbound messages since we don't track read status, use a simple count)
-        const { count } = await supabase
-          .from("messages")
-          .select("*", { count: "exact", head: true })
-          .eq("conversation_id", conv.id)
-          .eq("direction", "inbound");
-
         await supabase
           .from("conversations")
           .update({
@@ -119,10 +118,11 @@ export async function GET() {
     }
 
     return NextResponse.json({ success: true, newMessages: newMessageCount });
-  } catch (err) {
-    console.error("[poll] Error:", err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[poll] Error:", message);
     return NextResponse.json(
-      { success: false, error: "Failed to poll messages" },
+      { success: false, error: message },
       { status: 500 }
     );
   }
